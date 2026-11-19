@@ -106,3 +106,84 @@ export const registerUser = async (req: Request, res: Response) => {
     });
   }
 };
+
+export const loginUser = async (req: Request, res: Response) => {
+  try {
+    const { email, password } = req.body;
+
+    if (!email?.trim() || !password) {
+      return res.status(400).json({
+        success: false,
+        message: "Email and password are required.",
+      });
+    }
+
+    const db = getDB();
+
+    const user = await db.collection<User>("users").findOne({
+      email: email.trim().toLowerCase(),
+    });
+
+    if (!user || !user.password) {
+      return res.status(401).json({
+        success: false,
+        message: "Invalid email or password.",
+      });
+    }
+
+    const isPasswordValid = await bcrypt.compare(
+      password,
+      user.password
+    );
+
+    if (!isPasswordValid) {
+      return res.status(401).json({
+        success: false,
+        message: "Invalid email or password.",
+      });
+    }
+
+    const secret = process.env.JWT_SECRET;
+
+    if (!secret) {
+      throw new Error("JWT_SECRET is missing from environment variables.");
+    }
+
+    const token = jwt.sign(
+      {
+        userId: user._id!.toString(),
+        role: user.role,
+      },
+      secret,
+      { expiresIn: "1d" }
+    );
+
+    res.cookie("rentwise_token", token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      maxAge: 24 * 60 * 60 * 1000,
+      path: "/",
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: "Login successful!",
+      user: {
+        id: user._id!.toString(),
+        name: user.name,
+        email: user.email,
+        photo: user.photo,
+        role: user.role,
+      },
+    });
+  } catch (error) {
+    console.error("Login error:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Login failed. Please try again.",
+    });
+  }
+};
+
