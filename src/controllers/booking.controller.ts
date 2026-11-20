@@ -7,6 +7,15 @@ import { Booking } from "../models/booking.model.js";
 
 export const createBooking = async (req: Request, res: Response) => {
   try {
+    if (!req.user) {
+      return res.status(401).json({
+        success: false,
+        message: "Authentication required.",
+      });
+    }
+
+    const customerId = req.user.userId;
+
     const {
       equipmentId,
       customerName,
@@ -97,6 +106,7 @@ export const createBooking = async (req: Request, res: Response) => {
     const totalPrice = item.price * duration * quantity;
 
     const booking: Booking = {
+      customerId,
       equipmentId: String(item.id),
       equipmentName: item.name,
       customerName: customerName.trim(),
@@ -137,7 +147,9 @@ export const createBooking = async (req: Request, res: Response) => {
 
 export const getBookingById = async (req: Request, res: Response) => {
   try {
-    if (!ObjectId.isValid(req.params.id)) {
+    const bookingId = req.params.id;
+
+    if (typeof bookingId !== "string" || !ObjectId.isValid(bookingId)) {
       return res.status(400).json({
         success: false,
         message: "Invalid booking ID.",
@@ -146,7 +158,7 @@ export const getBookingById = async (req: Request, res: Response) => {
 
     const booking = await getDB()
       .collection<Booking>("bookings")
-      .findOne({ _id: new ObjectId(req.params.id) });
+      .findOne({ _id: new ObjectId(bookingId) });
 
     if (!booking) {
       return res.status(404).json({
