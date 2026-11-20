@@ -180,3 +180,36 @@ export const getBookingById = async (req: Request, res: Response) => {
     });
   }
 };
+
+export const getMyRentals = async (req: Request, res: Response) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({
+        success: false,
+        message: "Authentication required.",
+      });
+    }
+
+    const customerId = req.user.userId;
+
+    const bookings = await getDB()
+      .collection<Booking>("bookings")
+      .find({ customerId })
+      .sort({ createdAt: -1 })
+      .toArray();
+
+    return res.status(200).json({
+      success: true,
+      message: "Your rentals retrieved successfully.",
+      total: bookings.length,
+      bookings,
+    });
+  } catch (error) {
+    console.error("Get customer rentals error:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to retrieve your rentals.",
+    });
+  }
+};
